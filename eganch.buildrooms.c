@@ -216,7 +216,7 @@ void addRandomConnection(struct Room* rooms)
     while (FALSE) {
         roomA = getRandomRoom(rooms);
 
-        if (roomA->numConnections < NUM_ROOMS) {
+        if (roomA->numConnections < NUM_CONNECTIONS) {
             break;
         }
     }

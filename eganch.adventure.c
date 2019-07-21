@@ -1,8 +1,10 @@
 #include <dirent.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #define NAME_LENGTH 9
 #define NUM_CONNECTIONS 6
@@ -12,6 +14,9 @@
 
 int startRoomIndex = -1;
 int endRoomIndex = -1;
+
+pthread_mutex_t lock;
+pthread_t threadID;
 
 struct Room* rooms;
 struct Room {
@@ -166,16 +171,18 @@ struct Room* getRoomInfo() {
     return rooms;
 }
 
-void printRoomInfo(struct Room* currentRoom) {
-    printf("\nCURRENT LOCATION: %s\n", currentRoom->roomName);
+void printRoomInfo(int roomIndex) {
+    if (roomIndex != 10) {
+        printf("\nCURRENT LOCATION: %s\n", rooms[roomIndex].roomName);
 
-    printf("POSSIBLE CONNECTIONS: ");
-    int i;
-    for (i = 0; i < currentRoom->numConnections; i++) {
-        if (i == currentRoom->numConnections - 1) {
-            printf("%s.\n", currentRoom->connections[i]);
-        } else {
-            printf("%s, ", currentRoom->connections[i]);
+        printf("POSSIBLE CONNECTIONS: ");
+        int i;
+        for (i = 0; i < rooms[roomIndex].numConnections; i++) {
+            if (i == rooms[roomIndex].numConnections - 1) {
+                printf("%s.\n", rooms[roomIndex].connections[i]);
+            } else {
+                printf("%s, ", rooms[roomIndex].connections[i]);
+            }
         }
     }
 
@@ -183,6 +190,10 @@ void printRoomInfo(struct Room* currentRoom) {
 }
 
 int checkRoomIsValid(char* roomName) {
+    if (strcmp("time", roomName) == TRUE) {
+        return 10;
+    }
+
     int i;
     for (i = 0; i < NUM_ROOMS; i++) {
         if (strcmp(rooms[i].roomName, roomName) == TRUE) {
@@ -225,6 +236,55 @@ void printFinalStats() {
     }
 }
 
+/*
+ * https://linux.die.net/man/3/strftime
+ */
+void* getCurrentTime() {
+    char timeString[256];
+    char* timeFormat = "%n %l:%M%P, %A, %B %e, %Y%n%n";
+    time_t currentTime;
+
+    pthread_mutex_lock(&lock);
+
+    FILE* filePtr;
+    filePtr = fopen("currentTime.txt", "w");
+
+    if (filePtr == NULL) {
+        printf("\nERROR: Failed to create file. Exiting.\n");
+        exit(1);
+    }
+
+    currentTime = time(NULL);
+
+    if (strftime(timeString, sizeof(timeString), timeFormat, localtime(&currentTime)) == 0) {
+        printf("\nERROR: Failed to get current time. Exiting.\n");
+        exit(1);
+    }
+
+    printf(timeString);
+    fprintf(filePtr, timeString);
+
+    fclose(filePtr);
+
+    pthread_mutex_unlock(&lock);
+    pthread_exit(NULL);
+}
+
+/*
+ * https://www.thegeekstuff.com/2012/05/c-mutex-examples/?refcom
+ */
+void createTimeThread() {
+    int result;
+
+    pthread_mutex_lock(&lock);
+
+    result = pthread_create(&threadID, NULL, &getCurrentTime, NULL);
+    if (result != TRUE) {
+        printf("\nERROR: Failed to create thread. Exiting. \n");
+        exit(1);
+    }
+}
+
 void runRoomProgram() {
     int currentRoomIndex = startRoomIndex;
     int requestedRoomIndex = -1;
@@ -233,12 +293,19 @@ void runRoomProgram() {
 
     while (currentRoomIndex != endRoomIndex) {
         do {
-            printRoomInfo(&rooms[currentRoomIndex]);
+            printRoomInfo(currentRoomIndex);
             requestedRoomIndex = getUserInput();
         } while (requestedRoomIndex == -1);
 
         currentRoomIndex = requestedRoomIndex;
-        addToPath(currentRoomIndex);
+
+        if (requestedRoomIndex == 10) {
+            createTimeThread();
+            pthread_mutex_unlock(&lock);
+            pthread_join(threadID, NULL);
+        } else {
+            addToPath(currentRoomIndex);
+        }
     }
 
     printf("\nYOU'VE FOUND THE END ROOM. CONGRATULATIONS!\n");
@@ -246,23 +313,13 @@ void runRoomProgram() {
 }
 
 int main() {
+    if (pthread_mutex_init(&lock, NULL) != TRUE) {
+        printf("\nERROR: Failed to create mutex. Exiting.\n");
+        exit(1);
+    }
+
     getRoomsDirectory();
     getRoomInfo();
-
-/*    int i;
-    for (i = 0; i < NUM_ROOMS; i++) {
-        printf("ROOM NAME: %s\n", rooms[i].roomName);
-        printf("ROOM TYPE: %s\n", rooms[i].roomType);
-        printf("ROOM INDEX: %d\n", rooms[i].index);
-        printf("# CONNECTIONS: %d\n", rooms[i].numConnections);
-
-        int j;
-        for (j = 0; j < rooms[i].numConnections; j++) {
-            printf("CONNECTION %d: %s\n", j + 1, rooms[i].connections[j]);
-        }
-    }
-*/
-
     runRoomProgram();
 
     int i, j;
@@ -273,5 +330,6 @@ int main() {
     }
     free(rooms);
     free(path.path);
+    pthread_mutex_destroy(&lock);
     return 0;
 }
