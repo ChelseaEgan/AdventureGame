@@ -262,18 +262,23 @@ void printRoomInfo(int roomIndex) {
  * Otherwise, checks if the room name matches any in the room structs.
  * Returns the index if found, -1 if not found.
  */
-int checkRoomIsValid(char* roomName) {
+int checkRoomIsValid(char* roomName, int currentRoomIndex) {
     /* User requested the time, not a room */
     if (strcmp("time", roomName) == TRUE) {
         return TIME_CODE;
     }
 
-    /* Loop through all of the rooms in the struct and return the index
-     * if a matching room name is found */
+    /* Loop through all of the rooms connected to the current room and return the index
+     * of the room from the struct array if a matching room name is found */
     int i;
-    for (i = 0; i < NUM_ROOMS; i++) {
-        if (strcmp(rooms[i].roomName, roomName) == TRUE) {
-            return i;
+    for (i = 0; i < rooms[currentRoomIndex].numConnections; i++) {
+        if (strcmp(rooms[currentRoomIndex].connections[i], roomName) == TRUE) {
+            int j;
+            for (j = 0; j < NUM_ROOMS; j++) {
+                if (strcmp(rooms[currentRoomIndex].connections[i], rooms[j].roomName) == TRUE) {
+                    return j;
+                }
+            }
         }
     }
 
@@ -289,7 +294,7 @@ int checkRoomIsValid(char* roomName) {
  * if the room is valid. If invalid, prompts the user to
  * try again and returns -1.
  */
-int getUserInput() {
+int getUserInput(int currentRoomIndex) {
     int roomIndex = -1;
     char buffer[BUFFER_SIZE];
     char roomChoice[BUFFER_SIZE];
@@ -311,7 +316,7 @@ int getUserInput() {
     strncpy(roomChoice, buffer, length);
 
     /* Validate the user input */
-    roomIndex = checkRoomIsValid(roomChoice);
+    roomIndex = checkRoomIsValid(roomChoice, currentRoomIndex);
 
     /* If invalid input, prompt for new input */
     if (roomIndex == -1) {
@@ -445,7 +450,7 @@ void runRoomProgram() {
         /* Print current room info and get valid user input */
         do {
             printRoomInfo(currentRoomIndex);
-            requestedRoomIndex = getUserInput();
+            requestedRoomIndex = getUserInput(currentRoomIndex);
         } while (requestedRoomIndex == -1);
 
         /* If they requested the time, transfer the lock.
