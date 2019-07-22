@@ -234,19 +234,17 @@ struct Room* getRoomInfo() {
  * Then prompts for next room.
  */
 void printRoomInfo(int roomIndex) {
-    /* If they did not request the time, print the room info */
-    if (roomIndex != TIME_CODE) {
-        printf("\nCURRENT LOCATION: %s\n", rooms[roomIndex].roomName);
+    /* Print the room info */
+    printf("\nCURRENT LOCATION: %s\n", rooms[roomIndex].roomName);
 
-        printf("POSSIBLE CONNECTIONS: ");
-        int i;
-        for (i = 0; i < rooms[roomIndex].numConnections; i++) {
-            /* If it's the last connection, print with a period instead of a comma */
-            if (i == rooms[roomIndex].numConnections - 1) {
-                printf("%s.\n", rooms[roomIndex].connections[i]);
-            } else {
-                printf("%s, ", rooms[roomIndex].connections[i]);
-            }
+    printf("POSSIBLE CONNECTIONS: ");
+    int i;
+    for (i = 0; i < rooms[roomIndex].numConnections; i++) {
+        /* If it's the last connection, print with a period instead of a comma */
+        if (i == rooms[roomIndex].numConnections - 1) {
+            printf("%s.\n", rooms[roomIndex].connections[i]);
+        } else {
+            printf("%s, ", rooms[roomIndex].connections[i]);
         }
     }
 
@@ -460,6 +458,7 @@ void runRoomProgram() {
             pthread_mutex_unlock(&lock);
             pthread_join(threadID, NULL);
             readTimeFromFile();
+            requestedRoomIndex = currentRoomIndex;
         } else if (currentRoomIndex != requestedRoomIndex){
             addToPath(requestedRoomIndex);
         }
